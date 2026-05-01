@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify, render_template_string
 import pickle
 import re
-import os
 
 app = Flask(__name__)
 
@@ -21,21 +20,24 @@ HTML = """
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>كاشف رسائل الاحتيال</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #0a0a0f;
-    --surface: #12121a;
-    --border: #1e1e2e;
-    --accent: #e63946;
-    --accent-dim: rgba(230,57,70,0.12);
-    --safe: #2dc653;
-    --safe-dim: rgba(45,198,83,0.12);
-    --text: #f0eff4;
-    --muted: #6b6b80;
-    --font: 'IBM Plex Sans Arabic', sans-serif;
+    --bg: #f4f6f9;
+    --surface: #ffffff;
+    --border: #d0d8e4;
+    --primary: #003366;
+    --primary-light: #004d99;
+    --primary-dim: rgba(0, 51, 102, 0.08);
+    --accent: #0077cc;
+    --danger: #c0392b;
+    --danger-dim: rgba(192, 57, 43, 0.08);
+    --safe: #1a7a3c;
+    --safe-dim: rgba(26, 122, 60, 0.08);
+    --text: #1a1a2e;
+    --muted: #5a6a80;
+    --font: 'Times New Roman', Times, serif;
   }
 
   body {
@@ -44,187 +46,266 @@ HTML = """
     font-family: var(--font);
     min-height: 100vh;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: 2rem;
   }
 
-  body::before {
-    content: '';
-    position: fixed;
-    top: -50%;
-    right: -20%;
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(230,57,70,0.06) 0%, transparent 70%);
-    pointer-events: none;
+  .top-bar {
+    width: 100%;
+    background: var(--primary);
+    color: white;
+    padding: 0.6rem 2rem;
+    font-size: 0.85rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .top-bar span { opacity: 0.85; }
+
+  .header-bar {
+    width: 100%;
+    background: white;
+    border-bottom: 3px solid var(--accent);
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  .logo-circle {
+    width: 52px;
+    height: 52px;
+    background: var(--primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.1rem;
+    font-weight: bold;
+    flex-shrink: 0;
+  }
+
+  .header-bar h2 {
+    font-size: 1.1rem;
+    color: var(--primary);
+    font-weight: bold;
+    line-height: 1.3;
+  }
+
+  .header-bar p {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .project-banner {
+    width: 100%;
+    background: linear-gradient(135deg, #003366 0%, #0055a5 100%);
+    color: white;
+    text-align: center;
+    padding: 1.2rem 2rem;
+    border-bottom: 3px solid #0077cc;
+  }
+
+  .project-banner h1 {
+    font-size: 1.25rem;
+    font-weight: bold;
+    letter-spacing: 0.01em;
+    line-height: 1.4;
+  }
+
+  .project-banner .project-sub {
+    font-size: 0.82rem;
+    opacity: 0.8;
+    margin-top: 4px;
+  }
+
+  .project-tags {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.75rem;
+    color: white;
+  }
+
+  .main {
+    width: 100%;
+    max-width: 620px;
+    padding: 2rem 1rem;
   }
 
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 2.5rem;
-    width: 100%;
-    max-width: 560px;
+    border-radius: 10px;
+    padding: 2rem;
+    box-shadow: 0 2px 12px rgba(0,51,102,0.07);
   }
 
-  .header { margin-bottom: 2rem; }
-
-  .header h1 {
-    font-size: 1.6rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    line-height: 1.2;
+  .card-title {
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: var(--primary);
+    margin-bottom: 6px;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 10px;
   }
 
-  .header h1 span { color: var(--accent); }
-
-  .header p {
-    color: var(--muted);
+  .card-sub {
     font-size: 0.9rem;
-    margin-top: 6px;
-    font-weight: 300;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+    margin-top: 8px;
   }
-
-  .input-wrap { position: relative; margin-bottom: 1rem; }
 
   textarea {
     width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 12px;
+    background: #f8fafc;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
     color: var(--text);
     font-family: var(--font);
     font-size: 1rem;
     line-height: 1.7;
-    padding: 1rem;
+    padding: 0.9rem;
     resize: none;
-    min-height: 140px;
+    min-height: 130px;
     transition: border-color 0.2s;
     outline: none;
+    margin-bottom: 1rem;
   }
 
   textarea:focus { border-color: var(--accent); }
-  textarea::placeholder { color: var(--muted); }
+  textarea::placeholder { color: #aab; }
 
   .btn {
     width: 100%;
-    background: var(--accent);
+    background: var(--primary);
     color: white;
     border: none;
-    border-radius: 10px;
+    border-radius: 6px;
     font-family: var(--font);
     font-size: 1rem;
-    font-weight: 500;
-    padding: 0.85rem;
+    font-weight: bold;
+    padding: 0.8rem;
     cursor: pointer;
-    transition: opacity 0.2s, transform 0.1s;
+    transition: background 0.2s;
   }
 
-  .btn:hover { opacity: 0.88; }
+  .btn:hover { background: var(--primary-light); }
   .btn:active { transform: scale(0.99); }
 
   .result {
-    margin-top: 1.5rem;
-    border-radius: 12px;
-    padding: 1.25rem 1.5rem;
+    margin-top: 1.2rem;
+    border-radius: 6px;
+    padding: 1.1rem 1.3rem;
     display: none;
     animation: fadeIn 0.3s ease;
+    border-right: 5px solid;
   }
 
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(6px); }
+    from { opacity: 0; transform: translateY(5px); }
     to   { opacity: 1; transform: translateY(0); }
   }
 
-  .result.phishing {
-    background: var(--accent-dim);
-    border: 1px solid rgba(230,57,70,0.3);
-  }
+  .result.phishing { background: var(--danger-dim); border-color: var(--danger); }
+  .result.legit    { background: var(--safe-dim);   border-color: var(--safe); }
 
-  .result.legit {
-    background: var(--safe-dim);
-    border: 1px solid rgba(45,198,83,0.3);
-  }
+  .result-label { font-size: 1.15rem; font-weight: bold; margin-bottom: 4px; }
+  .result.phishing .result-label { color: var(--danger); }
+  .result.legit .result-label    { color: var(--safe); }
+  .result-desc { font-size: 0.9rem; color: var(--muted); }
 
-  .result-label {
-    font-size: 1.3rem;
-    font-weight: 600;
-    margin-bottom: 4px;
-  }
+  .examples { margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1.2rem; }
 
-  .result.phishing .result-label { color: var(--accent); }
-  .result.legit .result-label { color: var(--safe); }
-
-  .result-desc {
-    font-size: 0.875rem;
-    color: var(--muted);
-    font-weight: 300;
-  }
-
-  .examples {
-    margin-top: 2rem;
-    border-top: 1px solid var(--border);
-    padding-top: 1.5rem;
-  }
-
-  .examples p {
-    font-size: 0.8rem;
-    color: var(--muted);
-    margin-bottom: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+  .examples-title {
+    font-size: 0.82rem; color: var(--muted); margin-bottom: 0.7rem;
+    font-weight: bold; text-transform: uppercase; letter-spacing: 0.06em;
   }
 
   .example-btn {
-    display: block;
-    width: 100%;
-    text-align: right;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--muted);
-    font-family: var(--font);
-    font-size: 0.875rem;
-    padding: 0.6rem 0.9rem;
-    cursor: pointer;
-    margin-bottom: 6px;
-    transition: background 0.15s, color 0.15s;
+    display: block; width: 100%; text-align: right;
+    background: #f4f6f9; border: 1px solid var(--border);
+    border-radius: 5px; color: var(--text); font-family: var(--font);
+    font-size: 0.875rem; padding: 0.55rem 0.85rem;
+    cursor: pointer; margin-bottom: 6px; transition: background 0.15s, border-color 0.15s;
   }
 
-  .example-btn:hover {
-    background: var(--border);
-    color: var(--text);
-  }
-
+  .example-btn:hover { background: var(--primary-dim); border-color: var(--accent); color: var(--primary); }
   .loading { opacity: 0.6; pointer-events: none; }
+
+  .footer {
+    width: 100%; background: var(--primary);
+    color: rgba(255,255,255,0.7); text-align: center;
+    font-size: 0.8rem; padding: 1rem; margin-top: auto;
+  }
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="header">
-    <h1>كاشف رسائل <span>الاحتيال</span></h1>
-    <p>أدخل نص الرسالة لمعرفة إذا كانت احتيالية أو آمنة</p>
-  </div>
 
-  <div class="input-wrap">
-    <textarea id="emailText" placeholder="اكتب نص الرسالة هنا..."></textarea>
-  </div>
+<div class="top-bar">
+  <span>الجامعة السعودية الإلكترونية</span>
+  <span>Saudi Electronic University</span>
+</div>
 
-  <button class="btn" onclick="analyze()">تحليل الرسالة</button>
-
-  <div class="result" id="result">
-    <div class="result-label" id="resultLabel"></div>
-    <div class="result-desc" id="resultDesc"></div>
+<div class="header-bar">
+  <div class="logo-circle">SEU</div>
+  <div>
+    <h2>نظام كشف رسائل الاحتيال الإلكتروني</h2>
+    <p>Phishing Email Detection System — كلية الحوسبة وتقنية المعلومات</p>
   </div>
+</div>
 
-  <div class="examples">
-    <p>أمثلة للتجربة</p>
-    <button class="example-btn" onclick="setEx('حسابك البنكي موقوف اضغط هنا لتحديث بياناتك الآن')">⚠ حسابك البنكي موقوف اضغط هنا لتحديث بياناتك</button>
-    <button class="example-btn" onclick="setEx('تهانينا فزت بجائزة انقر على الرابط لاستلامها')">⚠ تهانينا فزت بجائزة انقر على الرابط</button>
-    <button class="example-btn" onclick="setEx('اجتماع الفريق غداً الساعة التاسعة في قاعة الاجتماعات')">✓ اجتماع الفريق غداً الساعة التاسعة</button>
+<div class="project-banner">
+  <h1>Arabic Phishing Email Detection Using NLP &amp; ML</h1>
+  <div class="project-sub">كشف رسائل الاحتيال الإلكتروني العربية باستخدام معالجة اللغة الطبيعية والتعلم الآلي</div>
+  <div class="project-tags">
+    <span class="tag">NLP</span>
+    <span class="tag">Machine Learning</span>
+    <span class="tag">TF-IDF</span>
+    <span class="tag">Logistic Regression</span>
+    <span class="tag">Python</span>
   </div>
+</div>
+
+<div class="main">
+  <div class="card">
+    <div class="card-title">تحليل الرسالة</div>
+    <div class="card-sub">أدخل نص الرسالة المراد فحصها لمعرفة إذا كانت احتيالية أم آمنة</div>
+
+    <textarea id="emailText" placeholder="اكتب أو الصق نص الرسالة هنا..."></textarea>
+
+    <button class="btn" onclick="analyze()">تحليل الرسالة</button>
+
+    <div class="result" id="result">
+      <div class="result-label" id="resultLabel"></div>
+      <div class="result-desc" id="resultDesc"></div>
+    </div>
+
+    <div class="examples">
+      <div class="examples-title">أمثلة للتجربة</div>
+      <button class="example-btn" onclick="setEx('حسابك البنكي موقوف اضغط هنا لتحديث بياناتك الآن')">⚠ حسابك البنكي موقوف اضغط هنا لتحديث بياناتك</button>
+      <button class="example-btn" onclick="setEx('تهانينا فزت بجائزة انقر على الرابط لاستلامها')">⚠ تهانينا فزت بجائزة انقر على الرابط</button>
+      <button class="example-btn" onclick="setEx('اجتماع الفريق غداً الساعة التاسعة في قاعة الاجتماعات')">✓ اجتماع الفريق غداً الساعة التاسعة</button>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  جميع الحقوق محفوظة © 2025 — الجامعة السعودية الإلكترونية
 </div>
 
 <script>
@@ -255,11 +336,11 @@ async function analyze() {
 
     if (data.prediction === 'phishing') {
       resultDiv.className = 'result phishing';
-      label.textContent = 'Phishing — رسالة احتيالية';
-      desc.textContent = 'هذه الرسالة تحتوي على علامات احتيال. لا تضغط على أي رابط أو تشارك بياناتك.';
+      label.textContent = '⚠ Phishing — رسالة احتيالية';
+      desc.textContent = 'هذه الرسالة تحتوي على علامات احتيال. لا تضغط على أي رابط أو تشارك بياناتك الشخصية.';
     } else {
       resultDiv.className = 'result legit';
-      label.textContent = 'Legitimate — رسالة آمنة';
+      label.textContent = '✓ Legitimate — رسالة آمنة';
       desc.textContent = 'هذه الرسالة تبدو طبيعية وآمنة.';
     }
     resultDiv.style.display = 'block';
@@ -290,5 +371,5 @@ def predict():
 
 if __name__ == "__main__":
     import webbrowser
-    webbrowser.open("http://localhost:5000")
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+    webbrowser.open("http://127.0.0.1:5000")
+    app.run(debug=False)
