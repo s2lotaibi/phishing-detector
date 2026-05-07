@@ -263,16 +263,9 @@ HTML = """
   </div>
 </div>
 
-<div class="project-banner">
+  <div class="project-banner">
   <h1>Arabic Phishing Email Detection Using NLP &amp; ML</h1>
   <div class="project-sub">كشف رسائل الاحتيال الإلكتروني العربية باستخدام معالجة اللغة الطبيعية والتعلم الآلي</div>
-  <div class="project-tags">
-    <span class="tag">NLP</span>
-    <span class="tag">Machine Learning</span>
-    <span class="tag">TF-IDF</span>
-    <span class="tag">Logistic Regression</span>
-    <span class="tag">Python</span>
-  </div>
 </div>
 
 <div class="main">
