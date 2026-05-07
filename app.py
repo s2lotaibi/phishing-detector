@@ -256,16 +256,10 @@ HTML = """
 </head>
 <body>
 
-<div class="top-bar">
-  <span>الجامعة السعودية الإلكترونية</span>
-  <span>Saudi Electronic University</span>
-</div>
-
 <div class="header-bar">
   <div class="logo-circle">SEU</div>
   <div>
     <h2>نظام كشف رسائل الاحتيال الإلكتروني</h2>
-    <p>Phishing Email Detection System — كلية الحوسبة وتقنية المعلومات</p>
   </div>
 </div>
 
